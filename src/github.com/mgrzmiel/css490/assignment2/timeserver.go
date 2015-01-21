@@ -20,7 +20,9 @@ import (
 
 // getTime is a function which display the time on the webside
 func getTime(res http.ResponseWriter, req *http.Request) {
-	now := time.Now().Format("3:04:05 PM")
+	now := time.Now()
+	nowLoc := now.Format("3:04:05 PM")
+	nowUTC := now.UTC().Format("15:04:05")
 	res.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(
 		res,
@@ -33,7 +35,7 @@ func getTime(res http.ResponseWriter, req *http.Request) {
 		</style>
 		</head>
 		<body>
-		<p>The time is now <span class="time">`+now+`</span>.</p>
+		<p>The time is now <span class="time">`+nowLoc+`</span> (`+nowUTC+` UTC).</p>
 		</body>
 		</html>`,
 	)
