@@ -45,24 +45,8 @@ func generateUniqueId() string {
 
 // loginForm function
 func loginForm(res http.ResponseWriter, req *http.Request) {
+	name, correctlyLogIn:= getNameAndCookie(res, req)
 	res.Header().Set("Content-Type", "text/html")
-	var name string
-	var ok bool
-	var cookie, err = req.Cookie("uuid")
-	correctlyLogIn := false
-	// if the cookie is set up
-	if err == nil {
-		// retrive the name
-		name, ok = sessions[cookie.Value]
-		// if the name exist, print greetings
-		if ok {
-			correctlyLogIn = true
-		// no name so invalidate cookie
-		} else {
-			invalidateCookie(res)
-		}
-	}
-
 	if !correctlyLogIn {
 		fmt.Fprintf(
 			res,
@@ -95,25 +79,79 @@ func invalidateCookie(res http.ResponseWriter) {
 	http.SetCookie(res, &cookie2)
 }
 
+func logOut(res http.ResponseWriter, req *http.Request) {
+	invalidateCookie(res)
+	fmt.Fprintf(
+		res,
+		`<html>
+		<head>
+		<META http-equiv="refresh" content="10;URL=/index.html">
+		<body>
+		<p>Good-bye.</p>
+		</body>
+		</html>`,
+		)
+}
+
+func getNameAndCookie (res http.ResponseWriter, req *http.Request) (string, bool){
+	var name string
+	var ok bool
+	var cookie, err = req.Cookie("uuid")
+	correctlyLogIn := false
+	// if the cookie is set up
+	if err == nil {
+		// retrive the name
+		name, ok = sessions[cookie.Value]
+		// if the name exist, print greetings
+		if ok {
+			correctlyLogIn = true
+		// no name so invalidate cookie
+		} else {
+			invalidateCookie(res)
+		}
+	}
+	return name, correctlyLogIn
+}
+
 // getTime is a function which display the time on the webside
 func getTime(res http.ResponseWriter, req *http.Request) {
 	now := time.Now().Format("3:04:05 PM")
+	name, correctlyLogIn := getNameAndCookie(res, req)
 	res.Header().Set("Content-Type", "text/html")
+	if (correctlyLogIn){
+		fmt.Fprintf(
+			res,
+			`<doctype html>
+	        <html>
+			<head>
+			<style>
+			p {font-size: xx-large}
+			span.time {color: red}
+			</style>
+			</head>
+			<body>
+			<p>The time is now <span class="time">`+now+`</span>, `+name+ 
+			`.</p>
+			</body>
+			</html>`,
+		)
+	}else{
 	fmt.Fprintf(
-		res,
-		`<doctype html>
-        <html>
-		<head>
-		<style>
-		p {font-size: xx-large}
-		span.time {color: red}
-		</style>
-		</head>
-		<body>
-		<p>The time is now <span class="time">`+now+`</span>.</p>
-		</body>
-		</html>`,
-	)
+			res,
+			`<doctype html>
+	        <html>
+			<head>
+			<style>
+			p {font-size: xx-large}
+			span.time {color: red}
+			</style>
+			</head>
+			<body>
+			<p>The time is now <span class="time">`+now+`</span>.</p>
+			</body>
+			</html>`,
+		)
+	}
 }
 
 // unknownRoute is a function which display "These are not the URLs you're looking for"
@@ -147,7 +185,7 @@ func main() {
 	// if user type -V, the V flag is set up to true
 	if version {
 		// display the information about the version
-		fmt.Println("version 1.2")
+		fmt.Println("version 1.4")
 		// otherwise run the server
 	} else {
 		portNr := strconv.Itoa(port)
@@ -155,6 +193,7 @@ func main() {
 		http.HandleFunc("/", unknownRoute)
 		http.HandleFunc("/index.html", loginForm)
 		http.HandleFunc("/login", logIn)
+		http.HandleFunc("/logout", logOut)
 		err := http.ListenAndServe(":"+portNr, nil)
 		if err != nil {
 			log.Fatal("ListenAndServe: ", err)
