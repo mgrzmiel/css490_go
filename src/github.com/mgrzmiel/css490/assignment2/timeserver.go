@@ -1,22 +1,99 @@
 // CSS 490
 // Magdalena Grzmiel
-// Assignments #1
+// Assignments #2
 // Copyright 2015 Magdalena Grzmiel
-// This is a simple example of http server which display the actuall time
-// after receiving following request: /time.
-// Otherwise, it displayes information "These are not the URLs you're looking for"
-// and sets the status code to 404 - Not Found.
+// This is a simple example of http server.
 
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os/exec"
 	"strconv"
+	"strings"
 	"time"
 )
+
+var sessions map[string]string
+
+// logIn is a function which read the user name from request
+func logIn(res http.ResponseWriter, req *http.Request) {
+	name := req.URL.Query().Get("name")
+	id := generateUniqueId()
+	sessions[id] = name
+	cookie := http.Cookie{Name: "uuid", Value: id, Path: "/"}
+	http.SetCookie(res, &cookie)
+	http.Redirect(res, req, "/index.html", http.StatusFound)
+}
+
+func generateUniqueId() string {
+	cmd := exec.Command("/usr/bin/uuidgen")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	uuid := out.String()
+	uuid = strings.Replace(uuid, "\n", "", 1)
+	return uuid
+}
+
+// loginForm function
+func loginForm(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/html")
+	var name string
+	var ok bool
+	var cookie, err = req.Cookie("uuid")
+	correctlyLogIn := false
+	// if the cookie is set up
+	if err == nil {
+		// retrive the name
+		name, ok = sessions[cookie.Value]
+		// if the name exist, print greetings
+		if ok {
+			correctlyLogIn = true
+		// no name so invalidate cookie
+		} else {
+			invalidateCookie(res)
+		}
+	}
+
+	if !correctlyLogIn {
+		fmt.Fprintf(
+			res,
+			`<html>
+			<body>
+			<form action="login">
+			  What is your name, Earthling?
+			  <input type="text" name="name" size="50">
+			  <input type="submit">
+			</form>
+			</p>
+			</body>
+			</html>`,
+		)
+	} else {
+		fmt.Fprintf(
+			res,
+			`<html>
+			<body>
+			<p> Greetings, `+name+`</p>
+			</body>
+			</html>`,
+		)
+	}
+}
+
+func invalidateCookie(res http.ResponseWriter) {
+	expire := time.Now().AddDate(-1, 0, -1)
+	cookie2 := http.Cookie{Name: "uuid", Path: "/", Expires: expire}
+	http.SetCookie(res, &cookie2)
+}
 
 // getTime is a function which display the time on the webside
 func getTime(res http.ResponseWriter, req *http.Request) {
@@ -55,14 +132,12 @@ func unknownRoute(res http.ResponseWriter, req *http.Request) {
 }
 
 // main function
-// This function is responsible for the whole program, it first read the flags from command
-// line and based on the flag it either runs the server or prints the version of the program.
-// If the user does not provide the port number, the default one is 8080.
-// When hitting /time, the website will display the current time.
-// For every other route the website will return 404 status code.
+// This function is responsible for the floow of whole program
 func main() {
+
 	var port int
 	var version bool
+	sessions = make(map[string]string)
 
 	// parse the flags
 	flag.IntVar(&port, "port", 8080, "used port")
@@ -72,12 +147,14 @@ func main() {
 	// if user type -V, the V flag is set up to true
 	if version {
 		// display the information about the version
-		fmt.Println("version 1.0_a")
+		fmt.Println("version 1.2")
 		// otherwise run the server
 	} else {
 		portNr := strconv.Itoa(port)
 		http.HandleFunc("/time", getTime)
 		http.HandleFunc("/", unknownRoute)
+		http.HandleFunc("/index.html", loginForm)
+		http.HandleFunc("/login", logIn)
 		err := http.ListenAndServe(":"+portNr, nil)
 		if err != nil {
 			log.Fatal("ListenAndServe: ", err)
