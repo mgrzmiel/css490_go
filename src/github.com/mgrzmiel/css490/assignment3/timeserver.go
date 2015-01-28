@@ -44,15 +44,16 @@ func Log(handler http.Handler) http.Handler {
 }
 
 func loadTemplate(res http.ResponseWriter, fileName string) {
-	tmpl := template.New(fileName)
+	tmpl := template.New("main")
 	templatPath := "templates/" + fileName + ".tmpl"
-	tmpl, err := tmpl.ParseFiles(templatPath)
+	menuPath := "templates/main.tmpl"
+	tmpl, err := tmpl.ParseFiles(menuPath, templatPath)
 	if err != nil {
 		fmt.Printf("parsing template: %s\n", err)
 		return
 	}
 
-	err = tmpl.ExecuteTemplate(res, fileName, "")
+	err = tmpl.ExecuteTemplate(res, "main", "")
 	if err != nil {
 		fmt.Printf("executing template: %s\n", err)
 		return
@@ -61,15 +62,16 @@ func loadTemplate(res http.ResponseWriter, fileName string) {
 }
 
 func loadTemplateWitData(res http.ResponseWriter, fileName string, data Context) {
-	tmpl := template.New(fileName)
+	tmpl := template.New("main")
 	templatPath := "templates/" + fileName + ".tmpl"
-	tmpl, err := tmpl.ParseFiles(templatPath)
+	menuPath := "templates/main.tmpl"
+	tmpl, err := tmpl.ParseFiles(menuPath, templatPath)
 	if err != nil {
 		fmt.Printf("parsing template: %s\n", err)
 		return
 	}
 
-	err = tmpl.ExecuteTemplate(res, fileName, data)
+	err = tmpl.ExecuteTemplate(res, "main", data)
 	if err != nil {
 		fmt.Printf("executing template: %s\n", err)
 		return
@@ -235,6 +237,8 @@ func main() {
 		// display the information about the version
 		fmt.Println("version 2.0")
 	} else {
+		// adding the styles
+		http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("styles"))))
 		// otherwise run the server
 		portNr := strconv.Itoa(port)
 		http.HandleFunc("/time", getTime)
@@ -242,6 +246,7 @@ func main() {
 		http.HandleFunc("/index.html", loginForm)
 		http.HandleFunc("/login", logIn)
 		http.HandleFunc("/logout", logOut)
+
 		err := http.ListenAndServe(":"+portNr, Log(http.DefaultServeMux))
 		if err != nil {
 			log.Fatal("ListenAndServe: ", err)
