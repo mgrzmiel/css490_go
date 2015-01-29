@@ -46,8 +46,10 @@ func Log(handler http.Handler) http.Handler {
 func loadTemplate(res http.ResponseWriter, fileName string) {
 	tmpl := template.New("main")
 	templatPath := "templates/" + fileName + ".tmpl"
-	menuPath := "templates/main.tmpl"
-	tmpl, err := tmpl.ParseFiles(menuPath, templatPath)
+	mainPath := "templates/main.tmpl"
+	menuPath := "templates/menu.tmpl"
+
+	tmpl, err := tmpl.ParseFiles(mainPath, menuPath, templatPath)
 	if err != nil {
 		fmt.Printf("parsing template: %s\n", err)
 		return
@@ -64,8 +66,10 @@ func loadTemplate(res http.ResponseWriter, fileName string) {
 func loadTemplateWitData(res http.ResponseWriter, fileName string, data Context) {
 	tmpl := template.New("main")
 	templatPath := "templates/" + fileName + ".tmpl"
-	menuPath := "templates/main.tmpl"
-	tmpl, err := tmpl.ParseFiles(menuPath, templatPath)
+	mainPath := "templates/main.tmpl"
+	menuPath := "templates/menu.tmpl"
+
+	tmpl, err := tmpl.ParseFiles(mainPath, menuPath, templatPath)
 	if err != nil {
 		fmt.Printf("parsing template: %s\n", err)
 		return
