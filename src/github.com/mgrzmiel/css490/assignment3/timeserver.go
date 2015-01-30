@@ -33,6 +33,8 @@ var sessionsSyncLoc *sync.RWMutex
 // declare the map for uuid and user's names
 var sessions map[string]string
 
+var templatePath string
+
 // Log function
 // Wrapper around DefaultServeMutex for printing each request
 // before it's being handled by a handle function
@@ -45,9 +47,9 @@ func Log(handler http.Handler) http.Handler {
 
 func loadTemplate(res http.ResponseWriter, fileName string) {
 	tmpl := template.New("main")
-	templatPath := "templates/" + fileName + ".tmpl"
-	mainPath := "templates/main.tmpl"
-	menuPath := "templates/menu.tmpl"
+	templatPath := templatePath + fileName + ".tmpl"
+	mainPath := templatePath + "main.tmpl"
+	menuPath := templatePath + "menu.tmpl"
 
 	tmpl, err := tmpl.ParseFiles(mainPath, menuPath, templatPath)
 	if err != nil {
@@ -65,9 +67,9 @@ func loadTemplate(res http.ResponseWriter, fileName string) {
 
 func loadTemplateWitData(res http.ResponseWriter, fileName string, data Context) {
 	tmpl := template.New("main")
-	templatPath := "templates/" + fileName + ".tmpl"
-	mainPath := "templates/main.tmpl"
-	menuPath := "templates/menu.tmpl"
+	templatPath := templatePath + fileName + ".tmpl"
+	mainPath := templatePath + "main.tmpl"
+	menuPath := templatePath + "menu.tmpl"
 
 	tmpl, err := tmpl.ParseFiles(mainPath, menuPath, templatPath)
 	if err != nil {
@@ -160,6 +162,10 @@ func logOut(res http.ResponseWriter, req *http.Request) {
 	loadTemplate(res, "logout")
 }
 
+func aboutUs(res http.ResponseWriter, req *http.Request) {
+	loadTemplate(res, "aboutUs")
+}
+
 // getNameAndCookie
 // It checks if the cookie is set up and if the name for that cookie exists in map.
 // Based on that, it sets up the correctlyLogIn variable.
@@ -234,6 +240,7 @@ func main() {
 	// parse the flags
 	flag.IntVar(&port, "port", 8080, "used port")
 	flag.BoolVar(&version, "V", false, "version of the program")
+	flag.StringVar(&templatePath, "templates", "", "path to the templates")
 	flag.Parse()
 
 	// if user type -V, the V flag is set up to true
@@ -241,15 +248,21 @@ func main() {
 		// display the information about the version
 		fmt.Println("version 2.0")
 	} else {
+		// check if the provided path ends with "/", if not add it
+		if !strings.HasSuffix(templatePath, "/") {
+			templatePath += "/"
+		}
+
 		// adding the styles
 		http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("styles"))))
-		// otherwise run the server
+		//run the server
 		portNr := strconv.Itoa(port)
 		http.HandleFunc("/time", getTime)
 		http.HandleFunc("/", unknownRoute)
 		http.HandleFunc("/index.html", loginForm)
 		http.HandleFunc("/login", logIn)
 		http.HandleFunc("/logout", logOut)
+		http.HandleFunc("/aboutUs", aboutUs)
 
 		err := http.ListenAndServe(":"+portNr, Log(http.DefaultServeMux))
 		if err != nil {
