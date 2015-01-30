@@ -8,17 +8,16 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
+	"github.com/mgrzmiel/css490/assignment3/lib/cookiesManager"
+	"github.com/mgrzmiel/css490/assignment3/lib/sessionManager"
 	"html"
 	"html/template"
 	"log"
 	"net/http"
-	"os/exec"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -27,12 +26,8 @@ type Context struct {
 	CurrentTime string
 }
 
-// sync lock for cuncurrent accessing sessions object
-var sessionsSyncLoc *sync.RWMutex
-
 // declare the map for uuid and user's names
-var sessions map[string]string
-
+var sessions *sessionManager.Sessions
 var templatePath string
 
 // Log function
@@ -95,15 +90,9 @@ func logIn(res http.ResponseWriter, req *http.Request) {
 	name := req.FormValue("name")
 	name = html.EscapeString(name)
 	if name != "" {
-		uuid := generateUniqueId()
-		sessionsSyncLoc.Lock()
-		sessions[uuid] = name
-		sessionsSyncLoc.Unlock()
 
-		// save uuid in the cookie
-		cookie := http.Cookie{Name: "uuid", Value: uuid, Path: "/"}
-		http.SetCookie(res, &cookie)
-
+		uuid := sessions.CreateSession(name)
+		cookiesManager.SetCookieValue(res, "uuid", uuid)
 		// redirect to /index.html endpoint
 		http.Redirect(res, req, "/index.html", http.StatusFound)
 	} else {
@@ -113,52 +102,35 @@ func logIn(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-// generateUniqueId
-// This function generates univerally unique identifier for cookie
-func generateUniqueId() string {
-	cmd := exec.Command("/usr/bin/uuidgen")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		log.Fatal(err)
-	}
-	uuid := out.String()
-	uuid = strings.Replace(uuid, "\n", "", 1)
-	return uuid
-}
-
 // loginForm function
 // If user is not login, it displays login form
 // Otherwise display the greeting message
 func loginForm(res http.ResponseWriter, req *http.Request) {
 	//check if the user is login
-	name, correctlyLogIn := getNameAndCookie(res, req)
+	cookie, ok := cookiesManager.GetCookieValue(req, "uuid")
+	var correctlyLogIn bool
+	if ok {
+		name, founded := sessions.GetSession(cookie)
+		if founded {
+			correctlyLogIn = true
+			greetingContex := Context{
+				Name: name,
+			}
+			loadTemplateWitData(res, "greetingMessage", greetingContex)
+		}
+	}
+
 	res.Header().Set("Content-Type", "text/html")
 	if !correctlyLogIn {
 		loadTemplate(res, "loginForm")
-	} else {
-		greetingContex := Context{
-			Name: name,
-		}
-		loadTemplateWitData(res, "greetingMessage", greetingContex)
 	}
-}
-
-// invalidate cookie
-// It invalidates cookies since no name exists for that uuid in map
-func invalidateCookie(res http.ResponseWriter) {
-	// set the experiation date to last year
-	expire := time.Now().AddDate(-1, 0, 0)
-	cookie := http.Cookie{Name: "uuid", Path: "/", Expires: expire}
-	http.SetCookie(res, &cookie)
 }
 
 // logout
 // It invalidates the cookie since user is no longer login
 // and displays good bye message
 func logOut(res http.ResponseWriter, req *http.Request) {
-	invalidateCookie(res)
+	cookiesManager.RemoveCookie(res, "uuid")
 	loadTemplate(res, "logout")
 }
 
@@ -169,33 +141,33 @@ func aboutUs(res http.ResponseWriter, req *http.Request) {
 // getNameAndCookie
 // It checks if the cookie is set up and if the name for that cookie exists in map.
 // Based on that, it sets up the correctlyLogIn variable.
-func getNameAndCookie(res http.ResponseWriter, req *http.Request) (string, bool) {
-	var name string
-	var ok bool
-	var cookie, err = req.Cookie("uuid")
+// func getNameAndCookie(res http.ResponseWriter, req *http.Request) (string, bool) {
+// 	var name string
+// 	var ok bool
+// 	var cookie, err = req.Cookie("uuid")
 
-	//correctlyLogIn - means that both cookie and name exists
-	correctlyLogIn := false
+// 	//correctlyLogIn - means that both cookie and name exists
+// 	correctlyLogIn := false
 
-	// if the cookie is set up
-	if err == nil {
+// 	// if the cookie is set up
+// 	if err == nil {
 
-		// retrive the name, before the access to map, lock it
-		sessionsSyncLoc.RLock()
-		name, ok = sessions[cookie.Value]
-		sessionsSyncLoc.RUnlock()
+// 		// retrive the name, before the access to map, lock it
+// 		sessionsSyncLoc.RLock()
+// 		name, ok = sessions[cookie.Value]
+// 		sessionsSyncLoc.RUnlock()
 
-		if ok {
-			// if the name exists, set correctllyLogIn to true
-			correctlyLogIn = true
-		} else {
-			// no name so invalidate cookie
-			invalidateCookie(res)
-		}
-	}
+// 		if ok {
+// 			// if the name exists, set correctllyLogIn to true
+// 			correctlyLogIn = true
+// 		} else {
+// 			// no name so invalidate cookie
+// 			invalidateCookie(res)
+// 		}
+// 	}
 
-	return name, correctlyLogIn
-}
+// 	return name, correctlyLogIn
+// }
 
 // getTime
 // It is called when the /time endpoint is used
@@ -203,7 +175,19 @@ func getNameAndCookie(res http.ResponseWriter, req *http.Request) (string, bool)
 func getTime(res http.ResponseWriter, req *http.Request) {
 	now := time.Now().Format("3:04:05 PM")
 	displayName := ""
-	name, correctlyLogIn := getNameAndCookie(res, req)
+	correctlyLogIn := false
+	var name string
+	var founded bool
+	cookie, ok := cookiesManager.GetCookieValue(req, "uuid")
+	if ok {
+		name, founded = sessions.GetSession(cookie)
+		if founded {
+			correctlyLogIn = true
+		} else {
+			cookiesManager.RemoveCookie(res, cookie)
+		}
+	}
+
 	if correctlyLogIn {
 		displayName = `, ` + name
 	}
@@ -234,8 +218,7 @@ func main() {
 
 	var port int
 	var version bool
-	sessions = make(map[string]string)
-	sessionsSyncLoc = new(sync.RWMutex)
+	sessions = sessionManager.New()
 
 	// parse the flags
 	flag.IntVar(&port, "port", 8080, "used port")
@@ -249,7 +232,7 @@ func main() {
 		fmt.Println("version 2.0")
 	} else {
 		// check if the provided path ends with "/", if not add it
-		if !strings.HasSuffix(templatePath, "/") {
+		if len(templatePath) > 0 && !strings.HasSuffix(templatePath, "/") {
 			templatePath += "/"
 		}
 
