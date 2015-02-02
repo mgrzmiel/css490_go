@@ -3,7 +3,7 @@ TEST_PACKAGE=...
  
 GODOC_PORT=:8080
  
-all: fmt install
+all: fmt get install
  
 build:
 	GOPATH="$(CURDIR)" go build $(PACKAGES)
@@ -20,6 +20,9 @@ fmt:
 doc:
 	GOPATH="$(CURDIR)" godoc -v --http=$(GODOC_PORT) --index=true
  
+get:
+	GOPATH="$(CURDIR)" go get $(PACKAGES)
+
 clean:
 	rm -f bin/*
 	rm -rf pkg/*
