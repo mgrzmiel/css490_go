@@ -138,37 +138,6 @@ func aboutUs(res http.ResponseWriter, req *http.Request) {
 	loadTemplate(res, "aboutUs")
 }
 
-// getNameAndCookie
-// It checks if the cookie is set up and if the name for that cookie exists in map.
-// Based on that, it sets up the correctlyLogIn variable.
-// func getNameAndCookie(res http.ResponseWriter, req *http.Request) (string, bool) {
-// 	var name string
-// 	var ok bool
-// 	var cookie, err = req.Cookie("uuid")
-
-// 	//correctlyLogIn - means that both cookie and name exists
-// 	correctlyLogIn := false
-
-// 	// if the cookie is set up
-// 	if err == nil {
-
-// 		// retrive the name, before the access to map, lock it
-// 		sessionsSyncLoc.RLock()
-// 		name, ok = sessions[cookie.Value]
-// 		sessionsSyncLoc.RUnlock()
-
-// 		if ok {
-// 			// if the name exists, set correctllyLogIn to true
-// 			correctlyLogIn = true
-// 		} else {
-// 			// no name so invalidate cookie
-// 			invalidateCookie(res)
-// 		}
-// 	}
-
-// 	return name, correctlyLogIn
-// }
-
 // getTime
 // It is called when the /time endpoint is used
 // It displayes the time on the webside
