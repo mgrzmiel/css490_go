@@ -7,10 +7,8 @@
 package sessionManager
 
 import (
-	"bytes"
 	log "github.com/cihub/seelog"
-	"os/exec"
-	"strings"
+	// "os"
 	"sync"
 )
 
@@ -29,24 +27,12 @@ func New() *Sessions {
 
 // CreateSession
 // This function generates univerally unique identifier for session and store it with name in map
-func (s *Sessions) CreateSession(name string) string {
-	//generate uuid
-	cmd := exec.Command("/usr/bin/uuidgen")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		log.Errorf("Not able to generate uuid", err)
-	}
-	uuid := out.String()
-	uuid = strings.Replace(uuid, "\n", "", 1)
-
+func (s *Sessions) SetSession(name string, uuid string) {
 	//add the name with uuid to map
 	s.SessionsSyncLoc.Lock()
 	s.SessionsMap[uuid] = name
 	log.Debugf("Logged in user. Name: %s, uuid: %s", name, uuid)
 	s.SessionsSyncLoc.Unlock()
-	return uuid
 }
 
 // GetSession
@@ -68,3 +54,11 @@ func (s *Sessions) RemoveSession(key string) {
 	log.Debugf("Delete session. uuid: %s", key)
 	delete(s.SessionsMap, key)
 }
+
+// func (s *Sessions) readData(fileName string) {
+// 	file, err := os.Open(fileName) // For read access.
+// 	if err != nil {
+// 		log.Errorf("File does not exist, %s \n", err)
+// 		return
+// 	}
+// }

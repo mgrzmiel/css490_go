@@ -1,6 +1,6 @@
 // CSS 490
 // Magdalena Grzmiel
-// Assignments #3
+// Assignments #4
 // Copyright 2015 Magdalena Grzmiel
 // This program is an example of personlized http server
 // which using templates and log messages.
@@ -8,21 +8,22 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	log "github.com/cihub/seelog"
-	"github.com/mgrzmiel/css490/assignment3/lib/cookieBasedSessionManager"
+	"github.com/mgrzmiel/css490/assignment4/lib/config"
+	"github.com/mgrzmiel/css490/assignment4/lib/cookieBasedSessionManager"
 	"html/template"
+	"math/rand"
 	"net/http"
 	"strconv"
-	"strings"
+	"sync"
 	"time"
 )
 
-const (
-	DEFAULT_LOG_PATH      = "etc/seelog.xml"
-	DEFAULT_TEMPLATE_PATH = "templates/"
-)
+// const (
+// 	DEFAULT_LOG_PATH      = "etc/seelog.xml"
+// 	DEFAULT_TEMPLATE_PATH = "templates/"
+// )
 
 // structure which keeps data which is passed to be displayed in template
 type Context struct {
@@ -31,11 +32,12 @@ type Context struct {
 	UTCTime     string
 }
 
-// declare the map for uuid and user's names
-var cookieBasedSessions *cookieBasedSessionManager.CookieBasedSessions
-
 // declare variable which is a path for getting templates
-var templatePath string
+// var templatePath string
+var portNr string
+var count int
+var lock *sync.RWMutex
+var number int
 
 // Log function
 // Wrapper around DefaultServeMutex for printing each request
@@ -52,11 +54,11 @@ func Log(handler http.Handler) http.Handler {
 func loadTemplate(res http.ResponseWriter, fileName string, data *Context) {
 	tmpl := template.New("main")
 	log.Debugf("Template to be rendered: %s", fileName)
-	templatPath := templatePath + fileName + ".tmpl"
-	mainPath := templatePath + "main.tmpl"
-	menuPath := templatePath + "menu.tmpl"
+	templatePath := config.TemplatePath + fileName + ".tmpl"
+	mainPath := config.TemplatePath + "main.tmpl"
+	menuPath := config.TemplatePath + "menu.tmpl"
 
-	tmpl, err := tmpl.ParseFiles(mainPath, menuPath, templatPath)
+	tmpl, err := tmpl.ParseFiles(mainPath, menuPath, templatePath)
 	if err != nil {
 		log.Errorf("Error during parsing template %s: %s", fileName, err)
 		return
@@ -74,7 +76,7 @@ func loadTemplate(res http.ResponseWriter, fileName string, data *Context) {
 // index.html endpoint, otherwise displays simple informationtion message.
 func logIn(res http.ResponseWriter, req *http.Request) {
 	// check if the user is login
-	login := cookieBasedSessions.Login(res, req)
+	login := cookieBasedSessionManager.Login(res, req)
 
 	if login {
 		log.Trace("User correctlly logged in. Redirecting to /index.html")
@@ -95,7 +97,7 @@ func logIn(res http.ResponseWriter, req *http.Request) {
 // Otherwise display the greeting message
 func loginForm(res http.ResponseWriter, req *http.Request) {
 	//check if the user is login
-	name, correctlyLogIn := cookieBasedSessions.GetSession(res, req)
+	name, correctlyLogIn := cookieBasedSessionManager.GetSession(res, req)
 
 	res.Header().Set("Content-Type", "text/html")
 	if correctlyLogIn {
@@ -115,7 +117,7 @@ func loginForm(res http.ResponseWriter, req *http.Request) {
 func logOut(res http.ResponseWriter, req *http.Request) {
 	log.Trace("Logging out user")
 
-	cookieBasedSessions.Logout(res, req)
+	cookieBasedSessionManager.Logout(res, req)
 	loadTemplate(res, "logout", nil)
 }
 
@@ -125,14 +127,69 @@ func aboutUs(res http.ResponseWriter, req *http.Request) {
 	loadTemplate(res, "aboutUs", nil)
 }
 
+//limit
+func limit(handler func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
+	fmt.Printf("limit is called \n")
+	fmt.Printf("max %s\n", config.MaxInflight)
+	fmt.Printf("count %s\n", count)
+	number++
+	fmt.Printf("function is called times: %s\n", number)
+
+	return func(res http.ResponseWriter, req *http.Request) {
+		if config.MaxInflight == -1 {
+			handler(res, req)
+		}
+
+		lock.Lock()
+		if config.MaxInflight > count {
+			count++
+			fmt.Printf("Count after increment %s\n", count)
+			lock.Unlock()
+			handler(res, req)
+			lock.Lock()
+			count--
+			fmt.Printf("Count after decrement %s\n", count)
+			lock.Unlock()
+		} else {
+			lock.Unlock()
+			fmt.Print("to many requests \n")
+			res.WriteHeader(http.StatusInternalServerError)
+		}
+	}
+}
+
+// 	lock.Lock()
+// 	if config.MaxInflight > count {
+
+// 		count++
+// 		fmt.Printf("Count after increment %s\n", count)
+// 		lock.Unlock()
+// 		return func(res http.ResponseWriter, req *http.Request) {
+// 			handler(res, req)
+
+// 			lock.Lock()
+// 			count--
+// 			fmt.Printf("Count after decrement %s\n", count)
+// 			lock.Unlock()
+// 		}
+// 	} else {
+// 		lock.Unlock()
+// 		return func(res http.ResponseWriter, req *http.Request) {
+// 			fmt.Print("to many requests \n")
+// 			res.WriteHeader(http.StatusInternalServerError)
+// 		}
+// 	}
+// }
+
 // getTime
 // Displayes the time on the webside
 func getTime(res http.ResponseWriter, req *http.Request) {
+	fmt.Print("time func is called \n")
 	now := time.Now()
 	nowLoc := now.Format("3:04:05 PM")
 	nowUTC := now.UTC().Format("15:04:05")
 	displayName := ""
-	name, correctlyLogIn := cookieBasedSessions.GetSession(res, req)
+	name, correctlyLogIn := cookieBasedSessionManager.GetSession(res, req)
 
 	if correctlyLogIn {
 		displayName = `, ` + name
@@ -144,6 +201,14 @@ func getTime(res http.ResponseWriter, req *http.Request) {
 		CurrentTime: nowLoc,
 		UTCTime:     nowUTC,
 	}
+
+	delay := rand.NormFloat64()*config.DeviationMs + config.AvgResponseMs
+	var delayTime time.Duration = time.Duration(delay)
+	if delayTime < 0 {
+		return
+	}
+
+	time.Sleep(delayTime * time.Millisecond)
 	loadTemplate(res, "time", &timeContex)
 }
 
@@ -162,47 +227,34 @@ func unknownRoute(res http.ResponseWriter, req *http.Request) {
 // main function
 // This function is responsible for the flow of whole program
 func main() {
-
-	var port int
-	var version bool
-	var logPath string
-	cookieBasedSessions = cookieBasedSessionManager.New()
-
-	// parse the flags
-	flag.IntVar(&port, "port", 8080, "used port")
-	flag.BoolVar(&version, "V", false, "version of the program")
-	flag.StringVar(&templatePath, "templates", DEFAULT_TEMPLATE_PATH, "path to the templates")
-	flag.StringVar(&logPath, "log", DEFAULT_LOG_PATH, "name of log config file")
-	flag.Parse()
 	// if user type -V, the V flag is set up to true
-	if version {
+	if config.Version {
 		// display the information about the version
-		fmt.Println("version 3.0")
+		fmt.Println("version 4.0")
 	} else {
-		logger, err := log.LoggerFromConfigAsFile(logPath)
+		logger, err := log.LoggerFromConfigAsFile(config.LogPath)
 		if err != nil {
 			log.Errorf("Cannot open config file %s\n", err)
 			return
 		}
 
+		lock = new(sync.RWMutex)
+		count = 0
+		number = 0
+
 		log.ReplaceLogger(logger)
 
 		log.Info("Starging server")
-		log.Debugf("Port: %s", port)
-		log.Debugf("Template path: %s", templatePath)
-		log.Debugf("logPath: %s", logPath)
-
-		// check if the provided path ends with "/", if not add it
-		if !strings.HasSuffix(templatePath, "/") {
-			templatePath += "/"
-		}
+		log.Debugf("Port: %s", config.Port)
+		log.Debugf("Template path: %s", config.TemplatePath)
+		log.Debugf("logPath: %s", config.LogPath)
 
 		// adding the styles
 		http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("styles"))))
 
 		//run the server
-		portNr := strconv.Itoa(port)
-		http.HandleFunc("/time", getTime)
+		portNr = strconv.Itoa(config.Port)
+		http.HandleFunc("/time", limit(getTime))
 		http.HandleFunc("/", unknownRoute)
 		http.HandleFunc("/index.html", loginForm)
 		http.HandleFunc("/login", logIn)

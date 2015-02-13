@@ -1,6 +1,6 @@
 // CSS 490
 // Magdalena Grzmiel
-// Assignments #3
+// Assignments #4
 // Copyright 2015 Magdalena Grzmiel
 // cookiesManager is resposnisible for managing the cookies.
 
