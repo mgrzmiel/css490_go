@@ -12,8 +12,7 @@ import (
 	"github.com/mgrzmiel/css490/assignment4/lib/sessionManager"
 	"net/http"
 	"strconv"
-	// "time"
-	"encoding/json"
+	"time"
 )
 
 const (
@@ -78,7 +77,19 @@ func unknownRequest(res http.ResponseWriter, req *http.Request) {
 // main function
 // This function is responsible for the flow of whole program
 func main() {
-	sessions = sessionManager.New()
+	fileName := config.Dumpfile
+	sessions = sessionManager.New(fileName)
+
+	// sessions.SessionsMap = readFromFile(fileName)
+	// fmt.Print("Print sessions maps")
+	// for key, value := range sessions.SessionsMap {
+	// 	fmt.Println("Key:", key, "Value:", value)
+	// }
+
+	if config.CheckpointInterval != -1 {
+		var checkpointInterval time.Duration = time.Duration(config.CheckpointInterval)
+		go sessions.WriteToFile(fileName, checkpointInterval)
+	}
 
 	logger, err := log.LoggerFromConfigAsFile(config.LogPath)
 	if err != nil {
@@ -86,25 +97,15 @@ func main() {
 		return
 	}
 
-	// var checkpointInterval time.Duration = time.Duration(config.CheckpointInterval)
-	// performWriting := time.Tick(checkpointInterval * time.Second)
-	// for now := range performWriting {
-	// 	fmt.Printf(" Every 10 seconds %v \n", now)
-	// 	mapB, _ := json.Marshal(sessions)
-	// 	fmt.Println(string(mapB))
-	// }
-
 	log.ReplaceLogger(logger)
 	log.Info("Starging authserver")
-	log.Debugf("Port: %s", config.Authport)
+	log.Debugf("Authport: %s", config.Authport)
 
 	//run the server
 	portNr := strconv.Itoa(config.Authport)
 	http.HandleFunc("/set", setFunc)
 	http.HandleFunc("/get", getFunc)
 	http.HandleFunc("/", unknownRequest)
-	mapB, _ := json.Marshal(sessions)
-	fmt.Println(string(mapB))
 
 	err = http.ListenAndServe(":"+portNr, Log(http.DefaultServeMux))
 	if err != nil {

@@ -1,3 +1,9 @@
+// CSS 490
+// Magdalena Grzmiel
+// Assignments #4
+// Copyright 2015 Magdalena Grzmiel
+// config is responsible for reading and parsing all of the flags.
+
 package config
 
 import (

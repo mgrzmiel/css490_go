@@ -26,7 +26,7 @@ const (
 )
 
 // Logout
-// It logouts by remopving the session from map and invalidating the cookie.
+// It logouts by removing the session from map and invalidating the cookie.
 func Logout(res http.ResponseWriter, req *http.Request) {
 	_, ok := cookiesManager.GetCookieValue(req, CookieName)
 	if ok {
