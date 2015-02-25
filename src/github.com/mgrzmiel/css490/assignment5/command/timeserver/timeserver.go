@@ -3,15 +3,15 @@
 // Assignments #4
 // Copyright 2015 Magdalena Grzmiel
 // This program is an example of personlized http server
-// which using templates and log messages.
+// which using templates, authserver and log messages.
 
 package main
 
 import (
 	"fmt"
 	log "github.com/cihub/seelog"
-	"github.com/mgrzmiel/css490/assignment4/lib/config"
-	"github.com/mgrzmiel/css490/assignment4/lib/cookieBasedSessionManager"
+	"github.com/mgrzmiel/css490/assignment5/lib/config"
+	"github.com/mgrzmiel/css490/assignment5/lib/cookieBasedSessionManager"
 	"html/template"
 	"math/rand"
 	"net/http"
@@ -19,11 +19,6 @@ import (
 	"sync"
 	"time"
 )
-
-// const (
-// 	DEFAULT_LOG_PATH      = "etc/seelog.xml"
-// 	DEFAULT_TEMPLATE_PATH = "templates/"
-// )
 
 // structure which keeps data which is passed to be displayed in template
 type Context struct {
@@ -33,11 +28,9 @@ type Context struct {
 }
 
 // declare variable which is a path for getting templates
-// var templatePath string
 var portNr string
 var count int
 var lock *sync.RWMutex
-var number int
 
 // Log function
 // Wrapper around DefaultServeMutex for printing each request
@@ -76,7 +69,7 @@ func loadTemplate(res http.ResponseWriter, fileName string, data *Context) {
 // index.html endpoint, otherwise displays simple informationtion message.
 func logIn(res http.ResponseWriter, req *http.Request) {
 	// check if the user is login
-	login := cookieBasedSessionManager.Login(res, req)
+	login, failureMessage := cookieBasedSessionManager.Login(res, req)
 
 	if login {
 		log.Trace("User correctlly logged in. Redirecting to /index.html")
@@ -88,12 +81,12 @@ func logIn(res http.ResponseWriter, req *http.Request) {
 
 		// if the provided input - name is empty, display this message
 		res.Header().Set("Content-Type", "text/html")
-		loadTemplate(res, "noName", nil)
+		loadTemplate(res, failureMessage, nil)
 	}
 }
 
 // loginForm function
-// If user is not login, it displays login form
+// If user is not logged in, it displays login form
 // Otherwise display the greeting message
 func loginForm(res http.ResponseWriter, req *http.Request) {
 	//check if the user is login
@@ -127,64 +120,32 @@ func aboutUs(res http.ResponseWriter, req *http.Request) {
 	loadTemplate(res, "aboutUs", nil)
 }
 
-//limit
+// limit
+// Limit the number of concurrent request which can be handled by server
 func limit(handler func(http.ResponseWriter, *http.Request)) func(http.ResponseWriter, *http.Request) {
-	fmt.Printf("limit is called \n")
-	fmt.Printf("max %s\n", config.MaxInflight)
-	fmt.Printf("count %s\n", count)
-	number++
-	fmt.Printf("function is called times: %s\n", number)
-
 	return func(res http.ResponseWriter, req *http.Request) {
-		if config.MaxInflight == -1 {
+		if config.MaxInflight <= 0 {
 			handler(res, req)
-		}
-
-		lock.Lock()
-		if config.MaxInflight > count {
-			count++
-			fmt.Printf("Count after increment %s\n", count)
-			lock.Unlock()
-			handler(res, req)
-			lock.Lock()
-			count--
-			fmt.Printf("Count after decrement %s\n", count)
-			lock.Unlock()
 		} else {
-			lock.Unlock()
-			fmt.Print("to many requests \n")
-			res.WriteHeader(http.StatusInternalServerError)
+			lock.Lock()
+			if config.MaxInflight > count {
+				count++
+				lock.Unlock()
+				handler(res, req)
+				lock.Lock()
+				count--
+				lock.Unlock()
+			} else {
+				lock.Unlock()
+				res.WriteHeader(http.StatusInternalServerError)
+			}
 		}
 	}
 }
 
-// 	lock.Lock()
-// 	if config.MaxInflight > count {
-
-// 		count++
-// 		fmt.Printf("Count after increment %s\n", count)
-// 		lock.Unlock()
-// 		return func(res http.ResponseWriter, req *http.Request) {
-// 			handler(res, req)
-
-// 			lock.Lock()
-// 			count--
-// 			fmt.Printf("Count after decrement %s\n", count)
-// 			lock.Unlock()
-// 		}
-// 	} else {
-// 		lock.Unlock()
-// 		return func(res http.ResponseWriter, req *http.Request) {
-// 			fmt.Print("to many requests \n")
-// 			res.WriteHeader(http.StatusInternalServerError)
-// 		}
-// 	}
-// }
-
 // getTime
 // Displayes the time on the webside
 func getTime(res http.ResponseWriter, req *http.Request) {
-	fmt.Print("time func is called \n")
 	now := time.Now()
 	nowLoc := now.Format("3:04:05 PM")
 	nowUTC := now.UTC().Format("15:04:05")
@@ -204,11 +165,10 @@ func getTime(res http.ResponseWriter, req *http.Request) {
 
 	delay := rand.NormFloat64()*config.DeviationMs + config.AvgResponseMs
 	var delayTime time.Duration = time.Duration(delay)
-	if delayTime < 0 {
-		return
+	if delayTime > 0 {
+		time.Sleep(delayTime * time.Millisecond)
 	}
 
-	time.Sleep(delayTime * time.Millisecond)
 	loadTemplate(res, "time", &timeContex)
 }
 
@@ -240,7 +200,6 @@ func main() {
 
 		lock = new(sync.RWMutex)
 		count = 0
-		number = 0
 
 		log.ReplaceLogger(logger)
 

@@ -10,13 +10,11 @@ package cookieBasedSessionManager
 import (
 	"bytes"
 	log "github.com/cihub/seelog"
-	"github.com/mgrzmiel/css490/assignment4/lib/authClient"
-	"github.com/mgrzmiel/css490/assignment4/lib/config"
-	"github.com/mgrzmiel/css490/assignment4/lib/cookiesManager"
+	"github.com/mgrzmiel/css490/assignment5/lib/authClient"
+	"github.com/mgrzmiel/css490/assignment5/lib/cookiesManager"
 	"html"
 	"net/http"
 	"os/exec"
-	"strconv"
 	"strings"
 )
 
@@ -40,30 +38,42 @@ func Logout(res http.ResponseWriter, req *http.Request) {
 // Login
 // It logins by extracting the name from request, creating the session for it and store
 // session key in the cookie
-func Login(res http.ResponseWriter, req *http.Request) bool {
+func Login(res http.ResponseWriter, req *http.Request) (bool, string) {
 	name := req.FormValue(NameParameter)
 	name = html.EscapeString(name)
 	log.Debugf("Log in user. Name: %s", name)
 	if name != "" {
-		//generate uuid
-		cmd := exec.Command("/usr/bin/uuidgen")
-		var out bytes.Buffer
-		cmd.Stdout = &out
-		err := cmd.Run()
-		if err != nil {
-			log.Errorf("Not able to generate uuid", err)
+		uuid := generateRandomUUID()
+		success := authClient.SetRequest(uuid, name)
+		if success {
+			cookiesManager.SetCookieValue(res, CookieName, uuid)
 		}
-		uuid := out.String()
-		uuid = strings.Replace(uuid, "\n", "", 1)
-
-		cookiesManager.SetCookieValue(res, CookieName, uuid)
-		port := strconv.Itoa(config.Authport)
-		authClient.SetRequest(config.Authhost, port, uuid, name)
 		// successfully loged in
-		return true
+		if success {
+			return success, ""
+		} else {
+			return success, "authServerFail"
+		}
+
 	}
 
-	return false
+	return false, "noName"
+}
+
+// generateRandomUUID
+// This functions uses linux uuidgen to generate random UUID for
+// session's needs
+func generateRandomUUID() string {
+	//generate uuidgen
+	cmd := exec.Command("/usr/bin/uuidgen")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		log.Errorf("Not able to generate uuid", err)
+	}
+	uuid := out.String()
+	return strings.Replace(uuid, "\n", "", 1)
 }
 
 // GetSession
@@ -71,14 +81,14 @@ func Login(res http.ResponseWriter, req *http.Request) bool {
 // exists in sessions. It returns the right bool value
 func GetSession(res http.ResponseWriter, req *http.Request) (string, bool) {
 	var name string
+	var success bool
 	correctlyLogIn := false
 	uuid, ok := cookiesManager.GetCookieValue(req, CookieName)
 	if ok {
 		log.Debugf("Found cookie. Value: %s", uuid)
-		port := strconv.Itoa(config.Authport)
-		name = authClient.GetRequest(config.Authhost, port, uuid)
-		if name != "" {
-			log.Debugf("Found session for kye: %s with value: %s", uuid, name)
+		name, success = authClient.GetRequest(uuid)
+		if name != "" && success {
+			log.Debugf("Found session for key: %s with value: %s", uuid, name)
 			correctlyLogIn = true
 		} else {
 			log.Debugf("No session found for key; %s", uuid)

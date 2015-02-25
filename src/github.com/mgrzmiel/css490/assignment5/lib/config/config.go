@@ -23,7 +23,7 @@ var LogPath string
 var TemplatePath string
 var Authport int
 var Authhost string
-var AuthtimeoutMs float64
+var AuthtimeoutMs int
 var AvgResponseMs float64
 var DeviationMs float64
 var MaxInflight int
@@ -31,8 +31,6 @@ var Dumpfile string
 var CheckpointInterval int
 
 func init() {
-	// cookieBasedSessions = cookieBasedSessionManager.New()
-
 	// parse the flags
 	flag.IntVar(&Port, "port", 8080, "used port")
 	flag.BoolVar(&Version, "V", false, "version of the program")
@@ -40,10 +38,10 @@ func init() {
 	flag.StringVar(&LogPath, "log", DEFAULT_LOG_PATH, "name of log config file")
 	flag.IntVar(&Authport, "authport", 8070, "auth_used port")
 	flag.StringVar(&Authhost, "authhost", DEFAULT_HOST_NAME, "name of the host")
-	flag.Float64Var(&AuthtimeoutMs, "authtime-ms", 10, "time to wait for response")
-	flag.Float64Var(&AvgResponseMs, "avg-response-ms", 10, "time to wait for response")
-	flag.Float64Var(&DeviationMs, "deviation-ms", 1, "time to wait for response")
-	flag.IntVar(&MaxInflight, "max-inflight", -1, "maximum number of in-flight time requests")
+	flag.IntVar(&AuthtimeoutMs, "authtime-ms", 10, "time to wait for response")
+	flag.Float64Var(&AvgResponseMs, "avg-response-ms", 0, "time to wait for response")
+	flag.Float64Var(&DeviationMs, "response-deviation-ms", 0, "time to wait for response")
+	flag.IntVar(&MaxInflight, "max-inflight", 0, "maximum number of in-flight time requests")
 	flag.StringVar(&Dumpfile, "dumpfile", "", "path to the dumpfile")
 	flag.IntVar(&CheckpointInterval, "checkpoint-interval", -1, "checkpoint interval")
 
