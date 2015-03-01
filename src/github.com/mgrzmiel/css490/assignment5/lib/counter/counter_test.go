@@ -1,4 +1,7 @@
-package counter
+// CSS 490
+// Magdalena Grzmiel
+// Assignments #5   
+// This is a unit test for counter package
 
 import (
 	"sync"

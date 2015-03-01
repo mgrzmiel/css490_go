@@ -1,12 +1,13 @@
+// CSS 490
+// Magdalena Grzmiel
+// Assignments #5   
+// counter is responsible for thread safe counting
+
 package counter
 
-// import(
-// 	"github.com/mgrzmiel/css490/assignment5/lib/counter"
-// )
-
 const (
-	kindIncerement = iota //value 0
-	kindGet
+	kindIncerement = iota // value 0
+	kindGet				  // value 1
 )
 
 type request struct {
@@ -17,7 +18,7 @@ type request struct {
 	requestKind int
 	// variable name
 	key string
-	// amount to increment (or decrement if negative)
+	// amount to increment
 	delta int
 }
 

@@ -1,0 +1,43 @@
+Report
+Magdalena Grzmiel
+Assignment #5
+CSS490
+
+------------------------------------------------------------------------------------------------------------------------------------
+
+ Sample runs of the load generator running against timeserver:
+
+------------------------------------------------------------------------------------------------------------------------------------
+1)./bin/authserver --log=etc/seelog.xml & ./bin/timeserver --log=etc/seelog.xml --port=8081 --max-inflight=80 --avg-response-ms=500   --response-deviation-ms=300 & ./bin/loadgen --url='http://localhost:8081/time' --runtime=10 --rate=2000 --burst=20 --timeout-ms=1000
+
+Results:
+total: 	2000
+100s: 	0
+200s: 	1394
+300s: 	0
+400s: 	0
+500s: 	522
+errors: 	84
+------------------------------------------------------------------------------------------------------------------------------------
+2.)./bin/authserver --log=etc/seelog.xml & ./bin/timeserver --log=etc/seelog.xml --port=8081 --max-inflight=80 --avg-response-ms=500   --response-deviation-ms=300 & ./bin/loadgen --url='http://localhost:8081/time' --runtime=10 --rate=2000 --burst=20 --timeout-ms=1000
+
+Results:
+total: 	18480
+100s: 	0
+200s: 	1442
+300s: 	0
+400s: 	0
+500s: 	16682
+errors: 	356
+------------------------------------------------------------------------------------------------------------------------------------
+3.)./bin/authserver --log=etc/seelog.xml & ./bin/timeserver --log=etc/seelog.xml --port=8081 --max-inflight=80 --avg-response-ms=500   --response-deviation-ms=300 & ./bin/loadgen --url='http://localhost:8081/time' --runtime=5 --rate=200 --burst=200 --timeout-ms=1000
+
+Results:
+total: 	1000
+100s: 	0
+200s: 	393
+300s: 	0
+400s: 	0
+500s: 	589
+errors: 	18
+------------------------------------------------------------------------------------------------------------------------------------

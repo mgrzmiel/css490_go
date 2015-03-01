@@ -1,3 +1,9 @@
+// CSS 490
+// Magdalena Grzmiel
+// Assignments #5
+// Copyright 2015 Magdalena Grzmiel
+// loadgen is responsible for genrating requests to the server
+
 package main
 
 import (
@@ -8,13 +14,14 @@ import (
 	"time"
 )
 
-var rate int      //    = 200
-var burst int     //    = 20
-var timeoutMS int // = 400
-var url string    //     = "http://localhost:8080/time"
-var runtime int   //  = 20 * time.Second
+var rate int
+var burst int
+var timeoutMS int
+var url string
+var runtime int
 var runtimeInMS time.Duration
 
+// create counter
 var (
 	c = counter.New()
 )
@@ -27,37 +34,40 @@ var convert = map[int]string{
 	5: "500s",
 }
 
-//one request
+// request
+// It is responsole for sending one request to the server
 func request() {
+	// increse the number of total request
 	c.Incr("total", 1)
+	
+	// set the max time to wait for response in milliseconds
 	client := http.Client{
 		Timeout: time.Duration(timeoutMS) * time.Millisecond,
 	}
+
+	// send the request
 	response, err := client.Get(url)
 	if err != nil {
+		// if error increse the number of total errors
 		c.Incr("errors", 1)
 		return
 	}
+
+	// get the response status code and convert it
 	key, ok := convert[response.StatusCode/100]
 	if !ok {
 		key = "errors"
 	}
+	
+	// increase the number
 	c.Incr(key, 1)
-
-	// if response.StatusCode<200{
-	// 	c.Incr('100s',1)
-	// }else if response.StatusCode<300{
-	// 	c.Incr('200', 1)
-	//} //etc
-
-	// c.Incr(fmt.Sprintf("%ds", (response.StatusCode /100)*100), 1)
 }
 
+// load
+// load is responsoble for generating the required number of requests
 func load() {
 	timeout := time.Tick(runtimeInMS)
 	interval := time.Duration((1000000*burst)/rate) * time.Microsecond
-	fmt.Println(interval)
-	fmt.Println(runtimeInMS)
 	period := time.Tick(interval)
 	for {
 		//fire off burst
@@ -66,21 +76,19 @@ func load() {
 		}
 		// wait for next tick
 		<-period
-		fmt.Println("p")
+
+		// if the tiemout already passed, return
+		// otherwise continue
 		select {
 		case <-timeout:
 			return
 		default:
 		}
-		//val, ok:= <-timeout
-		//poll or timeout
-
 	}
 
 }
 
 func main() {
-
 	flag.IntVar(&rate, "rate", 200, "rate")
 	flag.IntVar(&burst, "burst", 20, "burst")
 	flag.IntVar(&timeoutMS, "timeout-ms", 400, "timeoutMS")
@@ -89,12 +97,15 @@ func main() {
 
 	flag.Parse()
 
-	runtimeInMS = time.Duration(runtime) * time.Millisecond
-	//go load()
+	// set the runtime to time.Duration type
+	runtimeInMS = time.Duration(runtime) * time.Second
+
 	load()
 
-	time.Sleep(time.Duration(2*timeoutMS) * time.Millisecond)
+	// sleep to make sure all of the request are served
+	time.Sleep(time.Duration(2 * timeoutMS) * time.Millisecond)
 
+	// print results
 	fmt.Printf("total: \t%d\n", c.Get("total"))
 	fmt.Printf("100s: \t%d\n", c.Get("100s"))
 	fmt.Printf("200s: \t%d\n", c.Get("200s"))

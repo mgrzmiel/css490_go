@@ -1,6 +1,6 @@
 // CSS 490
 // Magdalena Grzmiel
-// Assignments #4
+// Assignments #5
 // Copyright 2015 Magdalena Grzmiel
 // This program is an example of personlized http server
 // which using templates, authserver and log messages.
@@ -190,7 +190,7 @@ func main() {
 	// if user type -V, the V flag is set up to true
 	if config.Version {
 		// display the information about the version
-		fmt.Println("version 4.0")
+		fmt.Println("version 5.0")
 	} else {
 		logger, err := log.LoggerFromConfigAsFile(config.LogPath)
 		if err != nil {

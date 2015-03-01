@@ -1,6 +1,6 @@
 // CSS 490
 // Magdalena Grzmiel
-// Assignments #4
+// Assignments #5
 // Copyright 2015 Magdalena Grzmiel
 // cookieBasedSessionManager is resposnisible for managing
 // cookies and session.
