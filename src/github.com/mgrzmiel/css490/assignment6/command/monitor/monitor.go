@@ -21,6 +21,11 @@ type Sample struct {
 	value       int
 }
 
+// type ratesInfo struct {
+// 	url   string
+// 	rates map[string]float64
+// }
+
 var targets string
 var sampleIntervalSec int
 var runtimeSec int
@@ -46,21 +51,32 @@ func getRates(target string, monitorDictionary map[string][]Sample) {
 		} else {
 			lastIndex := length - 1
 			secondLastIndex := length - 2
-			time1 := value[lastIndex].currentTime
-			time2 := value[secondLastIndex].currentTime
-			// fmt.Printf("time1: \t%s \t\n", time1)
-			// fmt.Printf("key: \t%s \t\n", key)
-			timeDiff := time1.Sub(time2)
-			//timeDiff := value[lastIndex].currentTime - value[secondLastIndex].currentTime
+			timeDiff := value[lastIndex].currentTime.Sub(value[secondLastIndex].currentTime)
 			countDiff := value[lastIndex].value - value[secondLastIndex].value
 			rate := float64(countDiff) / timeDiff.Seconds()
 			ratesMap[key] = rate
 		}
 	}
-	fmt.Printf("url: \t%s\n", target)
-	for key, value := range ratesMap {
-		fmt.Printf("key: \t%s \t", key)
-		fmt.Printf("rate: \t%f\t\n", value)
+
+	targetUrl := target + "monitor"
+	fmt.Printf("%s:\t", targetUrl)
+	rates := marshalData(ratesMap)
+	fmt.Printf("%s\n", rates)
+
+	// fmt.Printf("url: \t%s\n", targetUrl)
+	// for key, value := range ratesMap {
+	// 	fmt.Printf("key: \t%s \t", key)
+	// 	fmt.Printf("rate: \t%f\t\n", value)
+	// }
+}
+
+func marshalData(ratesMap map[string]float64) string {
+	data, err := json.Marshal(ratesMap)
+	if err != nil {
+		//log.Errorf("Not able to marshall the data")
+		return "Not able to marshall the data"
+	} else {
+		return string(data)
 	}
 }
 
