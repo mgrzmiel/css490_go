@@ -149,6 +149,7 @@ func limit(handler func(http.ResponseWriter, *http.Request)) func(http.ResponseW
 			} else {
 				lock.Unlock()
 				res.WriteHeader(http.StatusInternalServerError)
+				timeCounter.Incr("500s", 1)
 			}
 		}
 	}
@@ -201,7 +202,7 @@ func unknownRoute(res http.ResponseWriter, req *http.Request) {
 }
 
 // monitor
-//
+// It displays the json object which presents the statistics
 func monitor(res http.ResponseWriter, req *http.Request) {
 
 	// write to temp dictionery
@@ -211,6 +212,7 @@ func monitor(res http.ResponseWriter, req *http.Request) {
 	monitorMap["time-anon"] = timeCounter.Get("time-anon")
 	monitorMap["200s"] = timeCounter.Get("200s")
 	monitorMap["404s"] = timeCounter.Get("404s")
+	monitorMap["500s"] = timeCounter.Get("500s")
 
 	// marshall the data
 	data, err := json.Marshal(monitorMap)

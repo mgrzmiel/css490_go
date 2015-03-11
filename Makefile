@@ -26,5 +26,6 @@ get:
 clean:
 	rm -f bin/*
 	rm -rf pkg/*
+	rm -rf out/*
 
 

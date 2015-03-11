@@ -94,8 +94,8 @@ func unknownRequest(res http.ResponseWriter, req *http.Request) {
 	authServerCounter.Incr("404s", 1)
 }
 
-// monitor
-//
+// monitorFunc
+// It displays the json object which presents the statistics
 func monitorFunc(res http.ResponseWriter, req *http.Request) {
 
 	// write to temp dictionery
