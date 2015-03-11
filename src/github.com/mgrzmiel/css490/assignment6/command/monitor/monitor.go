@@ -17,29 +17,36 @@ import (
 )
 
 type Sample struct {
-	currentTime time.Time
-	value       int
+	CurrentTime time.Time
+	Value       int
 }
 
-// type ratesInfo struct {
-// 	url   string
-// 	rates map[string]float64
-// }
+type RatesInfo struct {
+	Url        string
+	Dictionery map[string][]Sample
+}
 
 var targets string
 var sampleIntervalSec int
 var runtimeSec int
 var lockPrinting *sync.RWMutex
 
+// func printResults(target string, monitorDictionary map[string][]Sample) {
+// 	fmt.Printf("url: \t%s\n", target)
+// 	rates := marshalData(monitorDictionary)
+// 	fmt.Printf("%s\n", rates)
+// 	for key, value := range monitorDictionary {
+// 		fmt.Printf("key: \t%s \t\n", key)
+// 		for _, oneVal := range value {
+// 			fmt.Printf("time: \t%s\t", oneVal.CurrentTime.Format("3:04:05 PM"))
+// 			fmt.Printf("value: \t%d\t\n", oneVal.Value)
+// 		}
+// 	}
+// }
+
 func printResults(target string, monitorDictionary map[string][]Sample) {
-	fmt.Printf("url: \t%s\n", target)
-	for key, value := range monitorDictionary {
-		fmt.Printf("key: \t%s \t\n", key)
-		for _, oneVal := range value {
-			fmt.Printf("time: \t%s\t", oneVal.currentTime.Format("3:04:05 PM"))
-			fmt.Printf("value: \t%d\t\n", oneVal.value)
-		}
-	}
+	rates := marshalData(target, monitorDictionary)
+	fmt.Printf("%s\n", rates)
 }
 
 func getRates(target string, monitorDictionary map[string][]Sample) {
@@ -51,8 +58,8 @@ func getRates(target string, monitorDictionary map[string][]Sample) {
 		} else {
 			lastIndex := length - 1
 			secondLastIndex := length - 2
-			timeDiff := value[lastIndex].currentTime.Sub(value[secondLastIndex].currentTime)
-			countDiff := value[lastIndex].value - value[secondLastIndex].value
+			timeDiff := value[lastIndex].CurrentTime.Sub(value[secondLastIndex].CurrentTime)
+			countDiff := value[lastIndex].Value - value[secondLastIndex].Value
 			rate := float64(countDiff) / timeDiff.Seconds()
 			ratesMap[key] = rate
 		}
@@ -60,8 +67,9 @@ func getRates(target string, monitorDictionary map[string][]Sample) {
 
 	targetUrl := target + "monitor"
 	fmt.Printf("%s:\t", targetUrl)
-	rates := marshalData(ratesMap)
-	fmt.Printf("%s\n", rates)
+	//rates := marshalData(targetUrl, ratesMap)
+	//rates := marshalData(ratesMap)
+	//fmt.Printf("%s\n", rates)
 
 	// fmt.Printf("url: \t%s\n", targetUrl)
 	// for key, value := range ratesMap {
@@ -70,15 +78,30 @@ func getRates(target string, monitorDictionary map[string][]Sample) {
 	// }
 }
 
-func marshalData(ratesMap map[string]float64) string {
-	data, err := json.Marshal(ratesMap)
+func marshalData(targetUrl string, monitorDictionary map[string][]Sample) string {
+	structFinal := RatesInfo{Url: targetUrl, Dictionery: monitorDictionary}
+	//fmt.Printf("Struct %s,\n", structFinal)
+	data, err := json.Marshal(structFinal)
 	if err != nil {
 		//log.Errorf("Not able to marshall the data")
 		return "Not able to marshall the data"
 	} else {
 		return string(data)
+		//return data
 	}
 }
+
+// func marshalData(ratesMap map[string][]Sample) string {
+// 	//structFinal := ratesInfo{url: targetUrl, rates: ratesMap}
+// 	data, err := json.Marshal(ratesMap)
+// 	if err != nil {
+// 		//log.Errorf("Not able to marshall the data")
+// 		return "Not able to marshall the data"
+// 	} else {
+// 		return string(data)
+// 		//return data
+// 	}
+// }
 
 func monitorTarget(target string) {
 
@@ -105,20 +128,20 @@ func monitorTarget(target string) {
 				} else {
 					timeNow := time.Now()
 					for key, val := range tempMap {
-						sample := Sample{currentTime: timeNow, value: val}
+						sample := Sample{CurrentTime: timeNow, Value: val}
 						monitorDictionary[key] = append(monitorDictionary[key], sample)
 					}
 				}
 			}
 		}
-		lockPrinting.Lock()
-		//printResults(target, monitorDictionary)
-		getRates(target, monitorDictionary)
-		lockPrinting.Unlock()
 		<-interval
-
 		select {
 		case <-timeout:
+			lockPrinting.Lock()
+			printResults(target, monitorDictionary)
+
+			//getRates(target, monitorDictionary)
+			lockPrinting.Unlock()
 			return
 		default:
 		}

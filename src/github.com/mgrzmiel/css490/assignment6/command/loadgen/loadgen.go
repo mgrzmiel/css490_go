@@ -7,19 +7,15 @@
 package main
 
 import (
-	"flag"
-	//"fmt"
+	"fmt"
+	log "github.com/cihub/seelog"
 	"github.com/mgrzmiel/css490/assignment6/lib/counter"
+	"github.com/mgrzmiel/css490/assignment6/lib/loadgenConfig"
 	"net/http"
 	"time"
 )
 
-var rate int
-var burst int
-var timeoutMS int
-var url string
-var runtime int
-var runtimeInMS time.Duration
+var runtimeDuration time.Duration
 
 // create counter
 var (
@@ -42,14 +38,15 @@ func request() {
 
 	// set the max time to wait for response in milliseconds
 	client := http.Client{
-		Timeout: time.Duration(timeoutMS) * time.Millisecond,
+		Timeout: time.Duration(loadgenConfig.TimeoutMS) * time.Millisecond,
 	}
 
 	// send the request
-	response, err := client.Get(url)
+	response, err := client.Get(loadgenConfig.Url)
 	if err != nil {
 		// if error increse the number of total errors
 		c.Incr("errors", 1)
+		log.Errorf("Error while getting response from client: %s", err)
 		return
 	}
 
@@ -57,6 +54,7 @@ func request() {
 	key, ok := convert[response.StatusCode/100]
 	if !ok {
 		key = "errors"
+		log.Error("Not able to get the response status code")
 	}
 
 	// increase the number
@@ -66,12 +64,12 @@ func request() {
 // load
 // load is responsoble for generating the required number of requests
 func load() {
-	timeout := time.Tick(runtimeInMS)
-	interval := time.Duration((1000000*burst)/rate) * time.Microsecond
+	timeout := time.Tick(runtimeDuration)
+	interval := time.Duration((1000000*loadgenConfig.Burst)/loadgenConfig.Rate) * time.Microsecond
 	period := time.Tick(interval)
 	for {
 		//fire off burst
-		for i := 0; i < burst; i++ {
+		for i := 0; i < loadgenConfig.Burst; i++ {
 			go request()
 		}
 		// wait for next tick
@@ -89,28 +87,29 @@ func load() {
 }
 
 func main() {
-	flag.IntVar(&rate, "rate", 200, "rate")
-	flag.IntVar(&burst, "burst", 20, "burst")
-	flag.IntVar(&timeoutMS, "timeout-ms", 400, "timeoutMS")
-	flag.StringVar(&url, "url", "http://localhost:8080/time", "url")
-	flag.IntVar(&runtime, "runtime", 20, "runtime")
-
-	flag.Parse()
 
 	// set the runtime to time.Duration type
-	runtimeInMS = time.Duration(runtime) * time.Second
+	runtimeDuration = time.Duration(loadgenConfig.Runtime) * time.Second
 
-	load()
+	logger, err := log.LoggerFromConfigAsFile(loadgenConfig.LogPath)
+	if err != nil {
+		log.Errorf("Cannot open config file %s\n", err)
+		return
+	}
+
+	log.ReplaceLogger(logger)
+
+	go load()
 
 	// sleep to make sure all of the request are served
-	time.Sleep(time.Duration(2*timeoutMS) * time.Millisecond)
+	time.Sleep(runtimeDuration + time.Duration(2*loadgenConfig.TimeoutMS)*time.Millisecond)
 
 	// print results
-	// fmt.Printf("total: \t%d\n", c.Get("total"))
-	// fmt.Printf("100s: \t%d\n", c.Get("100s"))
-	// fmt.Printf("200s: \t%d\n", c.Get("200s"))
-	// fmt.Printf("300s: \t%d\n", c.Get("300s"))
-	// fmt.Printf("400s: \t%d\n", c.Get("400s"))
-	// fmt.Printf("500s: \t%d\n", c.Get("500s"))
-	// fmt.Printf("errors: \t%d\n", c.Get("errors"))
+	fmt.Printf("total: \t%d\n", c.Get("total"))
+	fmt.Printf("100s: \t%d\n", c.Get("100s"))
+	fmt.Printf("200s: \t%d\n", c.Get("200s"))
+	fmt.Printf("300s: \t%d\n", c.Get("300s"))
+	fmt.Printf("400s: \t%d\n", c.Get("400s"))
+	fmt.Printf("500s: \t%d\n", c.Get("500s"))
+	fmt.Printf("errors: \t%d\n", c.Get("errors"))
 }

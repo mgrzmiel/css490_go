@@ -18,7 +18,7 @@ Arguments:
 	--port <portNo>     - (optional) defines port on which server is running (default: 8080)
 	-V                  - (optional) outputs version of the server and terminates it
 	-—templates         - (optional) to provide the path for templates (default: “templates/“)
-	—-log               - (optional) to specify the name of the log configuration file (default: “etc/seemlog.xml”)
+	—-log               - (optional) to specify the name of the log configuration file (default: “etc/timeserverlog.xml”)
 	—-authport <portNo> - (optional) to define the port on which the authserver is running (default: 8070)
 	—-authhost	 	    - (optional) to specifying the hostname of the authserver (default: localhost)
 	—-authtimeout-ms    - (optional) the time when the timeserver is waiting to get the respond from authserver in milliseconds (default: 0)
@@ -35,11 +35,12 @@ To run the program with the load generator, you have to additionally run ./bin/l
 	--rate 				- average rate of requests (per second)
 	--burst				- number of concurrent requests to issue
 	--time-out-ms		- max time to wait for response
+	—-log               - (optional) to specify the name of the log configuration file (default: “etc/loadgenlog.xml”)
 
 
 You can also used the Makefile to run the program - just type make in the command line and then bin/timeserver (plus arguments) and 
 in another window bin/authserver (plus arguments) and bin/load (plus argument). You can also run all of the programs in one window 
-(e.g. ./bin/authserver --log=etc/seelog.xml & ./bin/timeserver --log=etc/seelog.xml --port=8081 --max-inflight=80 --avg-response-ms=500 --response-deviation-ms=300 & ./bin/loadgen --url='http://localhost:8081/time' --runtime=10 --rate=200 --burst=20 --timeout-ms=1000).
+(e.g. ./bin/authserver --log=etc/authserverlog.xml & ./bin/timeserver --log=etc/timserverlog.xml --port=8081 --max-inflight=80 --avg-response-ms=500 --response-deviation-ms=300 & ./bin/loadgen --log=etc/loadgenlog.xml --url='http://localhost:8081/time' --runtime=10 --rate=200 --burst=20 --timeout-ms=1000).
 
 
 COPYING / LICENSE:	

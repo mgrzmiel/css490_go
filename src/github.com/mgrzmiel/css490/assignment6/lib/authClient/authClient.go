@@ -1,6 +1,6 @@
 // CSS 490
 // Magdalena Grzmiel
-// Assignments #5
+// Assignments #6
 // Copyright 2015 Magdalena Grzmiel
 // Authclient send request to the server.
 
